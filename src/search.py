@@ -387,6 +387,32 @@ def parse_proximity_query(proximity_query_text):
     prox = int(parsed_query.group("Prox"))
     return (phrase_1, phrase_2), prox
 
+def query_expansion_tfidf_term_weighting(inverted_index_object, term_dict, document):
+    """
+    Calculate the TF-IDF term weighting for a given term in a document.
+    Args:
+        term_dict (dict): A dictionary containing term information, including:
+            - "position_dict" (dict): A dictionary where keys are document identifiers and values are lists of positions where the term appears in the document.
+            - "document_set" (set): A set of documents in which the term appears.
+        document (str): The identifier of the document for which to calculate the term weighting.
+    Returns:
+        float: The TF-IDF term weighting for the term in the specified document. Returns 0 if the term is not in the document.
+    """
+
+    #Check if the search term is in the document we are looking a
+    if document not in term_dict["document_set"]:
+        return 0
+    
+    my_N = inverted_index_object["_total_document_set"]["size"]
+
+    term_frequency = len(term_dict["position_dict"][document])
+
+    document_frequency = len(term_dict["document_set"])
+
+    w_t_d = term_frequency*np.log10((my_N / document_frequency))
+
+    return w_t_d
+
 #################################################################################################################################
 #
 #       SECTION 1: AUXILIARY FUNCTIONS
@@ -916,6 +942,54 @@ class InvertedIndex:
         final_set = sorted(list(final_set))
 
         return final_set
+
+def read_in_ranked_ir_results_file(file_name):
+    pass
+
+def query_expansion(inverted_index_object, n_d, t_f, file_name):
+    #Assign a special key to the inverted index that contains the set of all documents and the total number of documents
+    #Need to build in function that reads in the queries and has a list of the documents in order for those queries (up to number of documents we want)
+    queries = read_in_ranked_ir_results_file(file_name, n_d)
+    term_list = defaultdict(lambda : 0)
+    for query in queries:
+        query_expansion_inverted_index = defaultdict(lambda: {"frequency": 0, "document_set": set(), "position_dict": defaultdict(lambda:set())})
+        query_expansion_inverted_index["_total_document_set"] = {"size":0, "document_set": set()}
+        for doc in inverted_index_object._root.findall('DOC'):
+            doc_id = int(doc.find('DOCNO').text.strip())
+            if doc_id in queries[query]["documents"]:
+                headline_length = 0
+                headline_element = doc.find('HEADLINE')
+                if headline_element is not None:
+                    headline_enumerable = enumerate(headline_element.text.split())
+                    headline_list = list(headline_enumerable)
+                    headline_length = headline_list[-1][0] + 1 if headline_list else 0
+                    for i, word in headline_list:
+                        query_expansion_inverted_index[word]["frequency"] += 1
+                        query_expansion_inverted_index[word]["document_set"].add(doc_id)
+                        query_expansion_inverted_index[word]["position_dict"][doc_id].add(i)
+                        query_expansion_inverted_index["_total_document_set"]["document_set"].add(doc_id)
+                text_element = doc.find('TEXT')
+                if text_element is not None:
+                    text_enumerable = enumerate(text_element.text.split())
+                    for i, word in text_enumerable:
+                        query_expansion_inverted_index[word]["frequency"] += 1
+                        query_expansion_inverted_index[word]["document_set"].add(doc_id)
+                        query_expansion_inverted_index[word]["position_dict"][doc_id].add(i + headline_length)
+                        query_expansion_inverted_index["_total_document_set"]["document_set"].add(doc_id)
+            query_expansion_inverted_index["_total_document_set"]["size"] = len(query_expansion_inverted_index["_total_document_set"]["document_set"])
+        
+        wtd_score_dict = defaultdict(lambda : 0)
+        for term in query_expansion_inverted_index:
+            term_dict = query_expansion_inverted_index[term]
+            document_set = term_dict["documents"]
+            wtd_score_dict[term] = query_expansion_tfidf_term_weighting(query_expansion_inverted_index, term_dict, document_set)
+        sorted_wtd_score = OrderedDict(sorted(wtd_score_dict.items(), key = lambda x: x[1], reverse=True))
+        term_list[query] = (sorted_wtd_score.keys())[0:t_f]
+
+        
+
+
+
 
 #################################################################################################################################
 #################################################################################################################################
