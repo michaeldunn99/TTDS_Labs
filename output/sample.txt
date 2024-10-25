@@ -1,0 +1,67 @@
+he:
+	Frequency: 6
+	Doc_ID: 1 Position(s): {0, 4}
+	Doc_ID: 2 Position(s): {0}
+	Doc_ID: 3 Position(s): {2}
+	Doc_ID: 4 Position(s): {2}
+	Doc_ID: 5 Position(s): {0}
+
+likes:
+	Frequency: 6
+	Doc_ID: 1 Position(s): {1, 5}
+	Doc_ID: 2 Position(s): {1}
+	Doc_ID: 3 Position(s): {3}
+	Doc_ID: 4 Position(s): {3}
+	Doc_ID: 5 Position(s): {1}
+
+to:
+	Frequency: 6
+	Doc_ID: 1 Position(s): {2, 6}
+	Doc_ID: 2 Position(s): {2}
+	Doc_ID: 3 Position(s): {4}
+	Doc_ID: 4 Position(s): {4}
+	Doc_ID: 5 Position(s): {2}
+
+wink:
+	Frequency: 2
+	Doc_ID: 1 Position(s): {3}
+	Doc_ID: 5 Position(s): {3}
+
+drink:
+	Frequency: 7
+	Doc_ID: 1 Position(s): {7}
+	Doc_ID: 2 Position(s): {3, 5, 7}
+	Doc_ID: 3 Position(s): {5}
+	Doc_ID: 4 Position(s): {5}
+	Doc_ID: 5 Position(s): {5}
+
+and:
+	Frequency: 3
+	Doc_ID: 2 Position(s): {4, 6}
+	Doc_ID: 5 Position(s): {4}
+
+the:
+	Frequency: 2
+	Doc_ID: 3 Position(s): {0}
+	Doc_ID: 4 Position(s): {0}
+
+thing:
+	Frequency: 1
+	Doc_ID: 3 Position(s): {1}
+
+is:
+	Frequency: 2
+	Doc_ID: 3 Position(s): {6}
+	Doc_ID: 4 Position(s): {6}
+
+ink:
+	Frequency: 3
+	Doc_ID: 3 Position(s): {7}
+	Doc_ID: 4 Position(s): {1}
+	Doc_ID: 5 Position(s): {7}
+
+pink:
+	Frequency: 2
+	Doc_ID: 4 Position(s): {7}
+	Doc_ID: 5 Position(s): {6}
+
