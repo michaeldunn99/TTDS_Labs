@@ -109,10 +109,10 @@ def convert_non_alphanumeric_to_space(text_input):
     Returns:
         str: The resulting string after replacing all non-alphanumeric characters with space characters.
     """
-    token_pattern = r"[^\w\s]"
+    token_pattern = r"[^a-z\s]"
     return  re.sub(token_pattern," ", text_input)
 
-def remove_single_s(text_input):
+def remove_single_char(text_input):
     """
     Removes instances of the letter 's' surrounded by spaces from the input text.
 
@@ -122,10 +122,10 @@ def remove_single_s(text_input):
     Returns:
         str: The modified string with ' s ' removed.
     """
-    pattern = r" s "
+    pattern = r" \w "
     return  re.sub(pattern," ", text_input)
 
-def remove_end_single_s(text_input):
+def remove_end_single_char(text_input):
     """
     Remove the singular letter ' s' at the end of lines in the given text input.
 
@@ -135,7 +135,7 @@ def remove_end_single_s(text_input):
     Returns:
         str: The modified text with ' s' removed from the end of lines.
     """
-    pattern = r" s\n"
+    pattern = r" \w\n"
     return  re.sub(pattern,"\n", text_input)
 
 
@@ -192,9 +192,9 @@ def my_preprocessor(text_line, remove_stop_words, apply_stemming, stop_words=def
     
     processed_text = convert_non_alphanumeric_to_space(processed_text)
 
-    processed_text = remove_single_s(processed_text)
+    processed_text = remove_single_char(processed_text)
     
-    processed_text = remove_end_single_s(processed_text)
+    processed_text = remove_end_single_char(processed_text)
     
     if apply_stemming:
         processed_text = processed_text.split()
@@ -387,7 +387,7 @@ def parse_proximity_query(proximity_query_text):
     prox = int(parsed_query.group("Prox"))
     return (phrase_1, phrase_2), prox
 
-def query_expansion_tfidf_term_weighting(inverted_index_object, term_dict, document):
+def query_expansion_tfidf_term_weighting(prf_inverted_index_object, term, collection_inverted_index_object):
     """
     Calculate the TF-IDF term weighting for a given term in a document.
     Args:
@@ -398,16 +398,13 @@ def query_expansion_tfidf_term_weighting(inverted_index_object, term_dict, docum
     Returns:
         float: The TF-IDF term weighting for the term in the specified document. Returns 0 if the term is not in the document.
     """
-
-    #Check if the search term is in the document we are looking a
-    if document not in term_dict["document_set"]:
-        return 0
     
-    my_N = inverted_index_object["_total_document_set"]["size"]
+    my_N = collection_inverted_index_object["_total_document_set"]["size"]
 
-    term_frequency = len(term_dict["position_dict"][document])
+    term_frequency = prf_inverted_index_object[term]["frequency"]
+    #term_frequency = len(term_dict["position_dict"][document])
 
-    document_frequency = len(term_dict["document_set"])
+    document_frequency = len(collection_inverted_index_object[term]["document_set"])
 
     w_t_d = term_frequency*np.log10((my_N / document_frequency))
 
@@ -943,10 +940,26 @@ class InvertedIndex:
 
         return final_set
 
-def read_in_ranked_ir_results_file(file_name):
-    pass
+def read_in_ranked_ir_results_file(file_name, n_d):
+    current_query = 1
+    results_read_in = 0
+    query_results_dict = defaultdict(lambda: [])
+    with open(file_name, 'r') as ranked_results_file:
+        for line in ranked_results_file:
+            values = line[:-1].split(',')
+            query = int(values[0])
+            document = int(values[1])
+            if query == current_query and results_read_in < n_d:
+                query_results_dict[query].append(document)
+                results_read_in +=1
+                if results_read_in == n_d:
+                    current_query +=1
+                    results_read_in = 0
+    return query_results_dict
+        
 
-def query_expansion(inverted_index_object, n_d, t_f, file_name):
+
+def query_expansion(inverted_index_object,file_name,  n_d, t_f):
     #Assign a special key to the inverted index that contains the set of all documents and the total number of documents
     #Need to build in function that reads in the queries and has a list of the documents in order for those queries (up to number of documents we want)
     queries = read_in_ranked_ir_results_file(file_name, n_d)
@@ -956,7 +969,7 @@ def query_expansion(inverted_index_object, n_d, t_f, file_name):
         query_expansion_inverted_index["_total_document_set"] = {"size":0, "document_set": set()}
         for doc in inverted_index_object._root.findall('DOC'):
             doc_id = int(doc.find('DOCNO').text.strip())
-            if doc_id in queries[query]["documents"]:
+            if doc_id in queries[query]:
                 headline_length = 0
                 headline_element = doc.find('HEADLINE')
                 if headline_element is not None:
@@ -979,12 +992,11 @@ def query_expansion(inverted_index_object, n_d, t_f, file_name):
             query_expansion_inverted_index["_total_document_set"]["size"] = len(query_expansion_inverted_index["_total_document_set"]["document_set"])
         
         wtd_score_dict = defaultdict(lambda : 0)
-        for term in query_expansion_inverted_index:
-            term_dict = query_expansion_inverted_index[term]
-            document_set = term_dict["documents"]
-            wtd_score_dict[term] = query_expansion_tfidf_term_weighting(query_expansion_inverted_index, term_dict, document_set)
+        for term in (key for key in query_expansion_inverted_index.keys() if key != "_total_document_set"):
+            wtd_score_dict[term] = query_expansion_tfidf_term_weighting(query_expansion_inverted_index, term, inverted_index_object._inverted_index)
         sorted_wtd_score = OrderedDict(sorted(wtd_score_dict.items(), key = lambda x: x[1], reverse=True))
-        term_list[query] = (sorted_wtd_score.keys())[0:t_f]
+        term_list[query] = list((sorted_wtd_score.keys()))[0:t_f]
+    return term_list
 
         
 
@@ -1042,6 +1054,7 @@ def main():
                     for doc in output_list:
                         boolean_output.write(f"{i+1},{doc}\n")
     
+    print("Done first task")
     # Read in ranked IR queries, parse them, apply Ranked IR search function, write results to disc
     with open("data/queries.lab3.txt",'r') as file, open("output/results.ranked.txt", "w") as ranked_ir_output:
         for i, line in enumerate(file):
@@ -1049,19 +1062,16 @@ def main():
             ranked_ir_dict = my_collection_index.ranked_ir_tfidf(parsed_line)
             for document in ranked_ir_dict:
                     ranked_ir_output.write(f"{i+1},{document},{ranked_ir_dict[document]:.4f}\n")
-
-    while True:
-        #get user input
-        user_input = input("Enter your query: ")
-        if user_input == "exit":
-            break
-        else:
-            #Apply boolean query
-            output_list = my_collection_index.boolean_query(user_input)
-            if output_list:
-                print(output_list)
-            else:
-                print("No documents found")
+    
+    print("Done second task")
+    expansion_results = query_expansion(my_collection_index, 'output/results.ranked.txt', 3, 10)
+    with open("data/queries.lab3.txt",'r') as file, open("output/query_expansions.ranked.txt", "w") as query_expansion_output:
+        for i, line in enumerate(file):
+            line = line[:-1]
+            line = line + " + "
+            for j in range(len(expansion_results[i+1])):
+                line += (expansion_results[i+1][j] + " ")
+            query_expansion_output.write((line[:-1]+"\n"))
 
     
  
